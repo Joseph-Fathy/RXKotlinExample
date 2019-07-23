@@ -30,6 +30,8 @@
 
 package com.raywenderlich.android.cheesefinder
 
+import android.text.Editable
+import android.text.TextWatcher
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
@@ -40,24 +42,11 @@ class CheeseActivity : BaseSearchActivity() {
 
     override fun onStart() {
         super.onStart()
-        val searchTextObservable = createButtonClickObservable()
+        val searchButtonObservable = createButtonClickObservable()
+        val queryEditTextObservable = createTextChangeObservable()
 
-        //Subscribe to the observable with subscribe(),
-        // and supply a simple Consumer.
-        searchTextObservable
-                .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
-                .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
-                .observeOn(Schedulers.io()) //the next operator will work on IO thread
-                .map {
-                    cheeseSearchEngine.search(it)!! //For each search query, you return a list of results.
-                }
-                .observeOn(AndroidSchedulers.mainThread()) //the next operator will work on Main thread
-                .subscribe {
-                    //simple Consumer
-
-                    hideProgress()
-                    showResult(it)
-                }
+        workWithSearchObservable(searchButtonObservable)
+        workWithSearchObservable(queryEditTextObservable)
     }
 
     //observe button clicks
@@ -79,5 +68,48 @@ class CheeseActivity : BaseSearchActivity() {
                 searchButton.setOnClickListener(null)
             }
         }
+    }
+
+
+    //observe text change
+    private fun createTextChangeObservable() :Observable<String>{
+        val textChangeObservable = Observable.create<String>{
+            emitter->
+
+            val textWatcher = object :TextWatcher{
+                override fun afterTextChanged(p0: Editable?) = Unit
+                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int)  = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                    s?.toString()?.let { emitter.onNext(it) }
+                }
+            }
+
+            queryEditText.addTextChangedListener(textWatcher)
+
+            emitter.setCancellable {
+                queryEditText.removeTextChangedListener(textWatcher)
+            }
+        }
+        return textChangeObservable
+    }
+
+
+    private fun workWithSearchObservable(searchObservable: Observable<String>){
+        //Subscribe to the observable with subscribe(),
+        // and supply a simple Consumer.
+        searchObservable
+                .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
+                .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
+                .observeOn(Schedulers.io()) //the next operator will work on IO thread
+                .map {
+                    cheeseSearchEngine.search(it)!! //For each search query, you return a list of results.
+                }
+                .observeOn(AndroidSchedulers.mainThread()) //the next operator will work on Main thread
+                .subscribe {
+                    //simple Consumer
+
+                    hideProgress()
+                    showResult(it)
+                }
     }
 }
