@@ -30,6 +30,54 @@
 
 package com.raywenderlich.android.cheesefinder
 
+import io.reactivex.Observable
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.schedulers.Schedulers
+import kotlinx.android.synthetic.main.activity_cheeses.*
+
 class CheeseActivity : BaseSearchActivity() {
 
+
+    override fun onStart() {
+        super.onStart()
+        val searchTextObservable = createButtonClickObservable()
+
+        //Subscribe to the observable with subscribe(),
+        // and supply a simple Consumer.
+        searchTextObservable
+                .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
+                .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
+                .observeOn(Schedulers.io()) //the next operator will work on IO thread
+                .map {
+                    cheeseSearchEngine.search(it)!! //For each search query, you return a list of results.
+                }
+                .observeOn(AndroidSchedulers.mainThread()) //the next operator will work on Main thread
+                .subscribe {
+                    //simple Consumer
+
+                    hideProgress()
+                    showResult(it)
+                }
+    }
+
+    //observe button clicks
+    private fun createButtonClickObservable(): Observable<String> {
+        //create Observable by Observable.create(),
+        // and supply it with a new ObservableOnSubscribe.
+        return Observable.create {
+            //ObservableOnSubscribe
+
+            emitter ->
+            searchButton.setOnClickListener {
+                emitter.onNext(queryEditText.text.toString())
+            }
+
+
+            emitter.setCancellable {
+                //will be called when the Observable is disposed such as
+                // when the Observable is completed or all Observers have unsubscribed from it.
+                searchButton.setOnClickListener(null)
+            }
+        }
+    }
 }

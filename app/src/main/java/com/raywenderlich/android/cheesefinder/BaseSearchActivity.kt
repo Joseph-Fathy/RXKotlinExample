@@ -32,14 +32,15 @@ package com.raywenderlich.android.cheesefinder
 
 import android.content.Context
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.raywenderlich.android.cheesefinder.database.Cheese
 import com.raywenderlich.android.cheesefinder.database.CheeseDatabase
 import com.raywenderlich.android.cheesefinder.database.CheeseUtil
-import io.reactivex.*
+import io.reactivex.Flowable
+import io.reactivex.Maybe
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -74,15 +75,18 @@ abstract class BaseSearchActivity : AppCompatActivity() {
     progressBar.visibility = VISIBLE
   }
 
+
   protected fun hideProgress() {
     progressBar.visibility = GONE
   }
 
-  protected fun showResult(result: List<Cheese>) {
-    if (result.isEmpty()) {
+  protected fun showResult(result: List<Cheese>?) {
+    if (result==null || result.isEmpty()) {
       Toast.makeText(this, R.string.nothing_found, Toast.LENGTH_SHORT).show()
+      cheeseAdapter.cheeses = emptyList()
     }
-    cheeseAdapter.cheeses = result
+    else
+      cheeseAdapter.cheeses = result
   }
 
   private fun loadInitialData(context: Context): Flowable<List<Long>> {
