@@ -36,11 +36,14 @@ import io.reactivex.BackpressureStrategy
 import io.reactivex.Flowable
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_cheeses.*
 
 class CheeseActivity : BaseSearchActivity() {
 
+
+    private lateinit var disposable: Disposable
 
     override fun onStart() {
         super.onStart()
@@ -51,6 +54,12 @@ class CheeseActivity : BaseSearchActivity() {
 
         val searchTextFlowable = Flowable.merge<String>(buttonClickStream, textChangeStream)
         workWithSearchFlowable(searchTextFlowable)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!disposable.isDisposed)
+            disposable.dispose()
     }
 
     //observe button clicks
@@ -76,13 +85,12 @@ class CheeseActivity : BaseSearchActivity() {
 
 
     //observe text change
-    private fun createTextChangeObservable() :Observable<String>{
-        val textChangeObservable = Observable.create<String>{
-            emitter->
+    private fun createTextChangeObservable(): Observable<String> {
+        val textChangeObservable = Observable.create<String> { emitter ->
 
-            val textWatcher = object :TextWatcher{
+            val textWatcher = object : TextWatcher {
                 override fun afterTextChanged(p0: Editable?) = Unit
-                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int)  = Unit
+                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     s?.toString()?.let { emitter.onNext(it) }
                 }
@@ -94,16 +102,16 @@ class CheeseActivity : BaseSearchActivity() {
                 queryEditText.removeTextChangedListener(textWatcher)
             }
         }
-        return textChangeObservable.filter{it.length>1}
+        return textChangeObservable.filter { it.length > 1 }
     }
 
 
-    private fun workWithSearchFlowable(searchFlowable: Flowable<String>){
+    private fun workWithSearchFlowable(searchFlowable: Flowable<String>) {
         //Subscribe to the observable with subscribe(),
         // and supply a simple Consumer.
-        searchFlowable
+        disposable = searchFlowable
                 .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
-                .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
+                .doOnNext { showProgress() } //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
                 .observeOn(Schedulers.computation())
                 .observeOn(Schedulers.io()) //the next operator will work on IO thread
                 .map {
