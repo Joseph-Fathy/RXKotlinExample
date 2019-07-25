@@ -32,11 +32,12 @@ package com.raywenderlich.android.cheesefinder
 
 import android.text.Editable
 import android.text.TextWatcher
+import io.reactivex.BackpressureStrategy
+import io.reactivex.Flowable
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_cheeses.*
-import java.util.concurrent.TimeUnit
 
 class CheeseActivity : BaseSearchActivity() {
 
@@ -44,10 +45,12 @@ class CheeseActivity : BaseSearchActivity() {
     override fun onStart() {
         super.onStart()
         val buttonClickStream = createButtonClickObservable()
+                .toFlowable(BackpressureStrategy.LATEST)
         val textChangeStream = createTextChangeObservable()
+                .toFlowable(BackpressureStrategy.BUFFER)
 
-        val searchTextObservable = Observable.merge<String>(buttonClickStream, textChangeStream)
-        workWithSearchObservable(searchTextObservable)
+        val searchTextFlowable = Flowable.merge<String>(buttonClickStream, textChangeStream)
+        workWithSearchFlowable(searchTextFlowable)
     }
 
     //observe button clicks
@@ -95,14 +98,13 @@ class CheeseActivity : BaseSearchActivity() {
     }
 
 
-    private fun workWithSearchObservable(searchObservable: Observable<String>){
+    private fun workWithSearchFlowable(searchFlowable: Flowable<String>){
         //Subscribe to the observable with subscribe(),
         // and supply a simple Consumer.
-        searchObservable
+        searchFlowable
                 .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
                 .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
                 .observeOn(Schedulers.computation())
-                .debounce(1000, TimeUnit.MILLISECONDS)
                 .observeOn(Schedulers.io()) //the next operator will work on IO thread
                 .map {
                     cheeseSearchEngine.search(it)!! //For each search query, you return a list of results.
