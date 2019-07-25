@@ -36,17 +36,18 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_cheeses.*
+import java.util.concurrent.TimeUnit
 
 class CheeseActivity : BaseSearchActivity() {
 
 
     override fun onStart() {
         super.onStart()
-        val searchButtonObservable = createButtonClickObservable()
-        val queryEditTextObservable = createTextChangeObservable()
+        val buttonClickStream = createButtonClickObservable()
+        val textChangeStream = createTextChangeObservable()
 
-        workWithSearchObservable(searchButtonObservable)
-        workWithSearchObservable(queryEditTextObservable)
+        val searchTextObservable = Observable.merge<String>(buttonClickStream, textChangeStream)
+        workWithSearchObservable(searchTextObservable)
     }
 
     //observe button clicks
@@ -100,6 +101,8 @@ class CheeseActivity : BaseSearchActivity() {
         searchObservable
                 .subscribeOn(AndroidSchedulers.mainThread()) //because the emissions are clicks on UI thread
                 .doOnNext {showProgress()} //Add the doOnNext operator so that showProgress() will be called every time a new item is emitted.
+                .observeOn(Schedulers.computation())
+                .debounce(1000, TimeUnit.MILLISECONDS)
                 .observeOn(Schedulers.io()) //the next operator will work on IO thread
                 .map {
                     cheeseSearchEngine.search(it)!! //For each search query, you return a list of results.
